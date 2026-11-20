@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>맥북 현장 테스트</title>
+<style>
+  :root { --bg:#fff; --fg:#111; --mut:#666; --card:#f4f4f5; --line:#ddd; --ok:#16a34a; --bad:#dc2626; --acc:#2563eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111; --fg:#eee; --mut:#999; --card:#1d1d20; --line:#333; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system, "Apple SD Gothic Neo", sans-serif; background:var(--bg); color:var(--fg); }
+  main { max-width:980px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:4px 0 12px; }
+  section { background:var(--card); border-radius:12px; padding:14px; margin:12px 0; }
+  h2 { font-size:16px; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .mut { color:var(--mut); font-size:13px; }
+  button { font:inherit; padding:6px 12px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--fg); cursor:pointer; }
+  .verdict button.on.ok { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .verdict button.on.bad { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .kb { display:flex; flex-direction:column; gap:4px; margin-top:8px; user-select:none; }
+  .row { display:flex; gap:4px; }
+  .k { flex:1 0 0; min-width:0; height:34px; border:1px solid var(--line); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; background:var(--bg); }
+  .k.hit { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .k.opt { opacity:.55; border-style:dashed; }
+  #pad { height:160px; border:2px dashed var(--line); border-radius:12px; display:flex; align-items:center; justify-content:center; text-align:center; overflow:hidden; }
+  .chips span { display:inline-block; margin:4px 6px 0 0; padding:2px 10px; border-radius:99px; border:1px solid var(--line); font-size:13px; }
+  .chips span.hit { background:var(--ok); color:#fff; border-color:var(--ok); }
+  #meter { height:14px; background:var(--line); border-radius:7px; overflow:hidden; margin:8px 0; }
+  #meter div { height:100%; width:0; background:var(--ok); transition:width .05s; }
+  video { width:100%; max-width:420px; border-radius:10px; background:#000; display:block; margin-top:8px; }
+  #fs { position:fixed; inset:0; display:none; z-index:9; cursor:none; }
+  #fs .hint { position:absolute; bottom:12px; left:0; right:0; text-align:center; font-size:13px; mix-blend-mode:difference; color:#fff; }
+  #sum { font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>맥북 현장 테스트</h1>
+  <p class="mut">각 항목을 해 보고 오른쪽에서 <b>정상 / 문제</b>를 눌러 주세요. 맨 아래에 요약이 나옵니다.</p>
+
+  <section data-t="화면">
+    <h2>1. 화면 <span class="verdict"></span></h2>
+    <button id="fsbtn">전체 화면 색 테스트 시작</button>
+    <p class="mut">클릭·스페이스로 색 변경 (흰 → 검 → 빨 → 초 → 파 → 회색). 점·줄·멍·빛샘·얼룩을 보세요. Esc로 종료.</p>
+  </section>
+
+  <section data-t="키보드">
+    <h2>2. 키보드 <span class="verdict"></span></h2>
+    <p class="mut">모든 키를 한 번씩 누르세요. 눌린 키는 초록색. 점선 키(맨 윗줄)는 밝기·음량 등 기능키라 브라우저가 못 읽으니 화면 밝기·소리가 바뀌는지 눈으로만 확인. ⌘는 단독으로만 누르기(⌘Q 금지).</p>
+    <div id="kbstat" class="mut"></div>
+    <div class="kb" id="kb"></div>
+    <p class="mut">키보드 백라이트: 제어 센터 → 키보드 밝기로 켜지는지 확인 (M1 에어는 전용 키 없음)</p>
+  </section>
+
+  <section data-t="트랙패드">
+    <h2>3. 트랙패드 <span class="verdict"></span></h2>
+    <div id="pad">아래 동작을 이 영역에서 해 보세요</div>
+    <div class="chips" id="padchips">
+      <span data-p="click">클릭</span><span data-p="right">두 손가락 클릭</span><span data-p="force">강하게 누르기</span><span data-p="scroll">두 손가락 스크롤</span><span data-p="move">커서 이동(네 구석까지)</span>
+    </div>
+  </section>
+
+  <section data-t="스피커">
+    <h2>4. 스피커 <span class="verdict"></span></h2>
+    <button data-pan="-1">왼쪽</button> <button data-pan="1">오른쪽</button> <button data-pan="0">양쪽</button> <button id="sweep">저음→고음</button>
+    <p class="mut">왼쪽·오른쪽이 각각 따로 들리는지, 최대 볼륨에서 지직거림이 없는지.</p>
+  </section>
+
+  <section data-t="마이크·카메라">
+    <h2>5. 마이크 · 카메라 <span class="verdict"></span></h2>
+    <button id="av">마이크·카메라 켜기</button> <span class="mut">(Safari 권한 허용 필요)</span>
+    <div id="meter"><div></div></div>
+    <p class="mut">말을 하면 막대가 움직이는지, 카메라 화면이 선명하고 줄·얼룩이 없는지.</p>
+    <video id="vid" autoplay playsinline muted></video>
+  </section>
+
+  <section data-t="GPU">
+    <h2>7. GPU 스트레스 <span class="verdict"></span></h2>
+    <button id="gpubtn">60초 GPU 부하 시작</button> <span class="mut" id="gpustat"></span>
+    <canvas id="gpucv" width="960" height="600" style="width:100%;max-width:480px;display:block;margin-top:8px;border-radius:10px;background:#000"></canvas>
+    <p class="mut">무거운 셰이더로 GPU를 60초 돌립니다. 화면 깨짐·멈춤·"WebGL 컨텍스트 손실"이 없고, 끝까지 FPS가 크게 무너지지 않으면 정상입니다.</p>
+  </section>
+
+  <section>
+    <h2>요약</h2>
+    <div id="sum">아직 판정 안 함</div>
+    <p class="mut">화면을 휴대폰으로 찍어 두세요.</p>
+  </section>
+</main>
+<div id="fs"><div class="hint">클릭/스페이스: 다음 색 · Esc: 종료</div></div>
+
+<script>
+(() => {
+  // ---------- 판정 버튼 ----------
+  const verdicts = {};
+  document.querySelectorAll('section[data-t]').forEach(sec => {
+    const t = sec.dataset.t, v = sec.querySelector('.verdict');
+    v.innerHTML = '<button class="ok">정상</button> <button class="bad">문제</button>';
+    v.querySelectorAll('button').forEach(b => b.onclick = () => {
+      v.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on'); verdicts[t] = b.classList.contains('ok') ? '정상' : '문제'; summary();
+    });
+  });
+  function summary() {
+    const names = [...document.querySelectorAll('section[data-t]')].map(s => s.dataset.t);
+    const done = names.filter(n => verdicts[n]);
+    const bad = names.filter(n => verdicts[n] === '문제');
+    const left = names.filter(n => !verdicts[n]);
+    document.getElementById('sum').textContent =
+      `판정 ${done.length}/${names.length}` + (bad.length ? ` · 문제: ${bad.join(', ')}` : ' · 문제 없음') +
+      (left.length ? ` · 남음: ${left.join(', ')}` : '') + ` · 키보드 ${hitCount()}/${required.length}`;
+  }
+
+  // ---------- 화면 ----------
+  const fs = document.getElementById('fs');
+  const colors = ['#fff', '#000', '#f00', '#0f0', '#00f', '#808080'];
+  let ci = 0, fsOn = false;
+  function fsShow(on) {
+    fsOn = on; fs.style.display = on ? 'block' : 'none';
+    if (on) { ci = 0; fs.style.background = colors[0]; (fs.requestFullscreen || fs.webkitRequestFullscreen || (()=>{})).call(fs); }
+    else if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+  }
+  function nextColor() { ci = (ci + 1) % colors.length; fs.style.background = colors[ci]; }
+  document.getElementById('fsbtn').onclick = () => fsShow(true);
+  fs.onclick = nextColor;
+  const onFsChange = () => { if (!(document.fullscreenElement || document.webkitFullscreenElement) && fsOn) fsShow(false); };
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  // ---------- 키보드 (US/한글 Mac 배열) ----------
+  const opt = ['Escape','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+  const rows = [
+    [['Escape','esc'],['F1','F1'],['F2','F2'],['F3','F3'],['F4','F4'],['F5','F5'],['F6','F6'],['F7','F7'],['F8','F8'],['F9','F9'],['F10','F10'],['F11','F11'],['F12','F12']],
+    [['Backquote','`'],['Digit1','1'],['Digit2','2'],['Digit3','3'],['Digit4','4'],['Digit5','5'],['Digit6','6'],['Digit7','7'],['Digit8','8'],['Digit9','9'],['Digit0','0'],['Minus','-'],['Equal','='],['Backspace','⌫']],
+    [['Tab','⇥'],['KeyQ','Q'],['KeyW','W'],['KeyE','E'],['KeyR','R'],['KeyT','T'],['KeyY','Y'],['KeyU','U'],['KeyI','I'],['KeyO','O'],['KeyP','P'],['BracketLeft','['],['BracketRight',']'],['Backslash','\\']],
+    [['CapsLock','⇪'],['KeyA','A'],['KeyS','S'],['KeyD','D'],['KeyF','F'],['KeyG','G'],['KeyH','H'],['KeyJ','J'],['KeyK','K'],['KeyL','L'],['Semicolon',';'],['Quote',"'"],['Enter','⏎']],
+    [['ShiftLeft','⇧'],['KeyZ','Z'],['KeyX','X'],['KeyC','C'],['KeyV','V'],['KeyB','B'],['KeyN','N'],['KeyM','M'],['Comma',','],['Period','.'],['Slash','/'],['ShiftRight','⇧']],
+    [['ControlLeft','⌃'],['AltLeft','⌥'],['MetaLeft','⌘'],['Space','space'],['MetaRight','⌘'],['AltRight','⌥'],['ArrowLeft','←'],['ArrowUp','↑'],['ArrowDown','↓'],['ArrowRight','→']]
+  ];
+  const kb = document.getElementById('kb'), el = {};
+  rows.forEach(r => {
+    const d = document.createElement('div'); d.className = 'row';
+    r.forEach(([code, lab]) => {
+      const k = document.createElement('div'); k.className = 'k' + (opt.includes(code) && code !== 'Escape' ? ' opt' : ''); k.textContent = lab;
+      if (code === 'Space') k.style.flexGrow = 5;
+      if (['Backspace','Tab','CapsLock','Enter','ShiftLeft','ShiftRight'].includes(code)) k.style.flexGrow = 1.6;
+      d.appendChild(k); el[code] = k;
+    });
+    kb.appendChild(d);
+  });
+  const required = Object.keys(el).filter(c => !opt.includes(c) || c === 'Escape');
+  const hit = new Set();
+  const hitCount = () => required.filter(c => hit.has(c)).length;
+  function kbstat() {
+    const miss = required.filter(c => !hit.has(c)).map(c => el[c].textContent);
+    document.getElementById('kbstat').textContent =
+      `${hitCount()}/${required.length} 확인` + (miss.length && miss.length <= 12 ? ` · 남은 키: ${miss.join(' ')}` : '') +
+      (miss.length === 0 ? ' · 전부 확인됨 ✅' : '');
+    summary();
+  }
+  document.addEventListener('keydown', e => {
+    if (fsOn) {
+      if (e.code === 'Space') { e.preventDefault(); nextColor(); }
+      if (e.code === 'Escape') fsShow(false);
+      return;
+    }
+    const c = e.code === 'IntlBackslash' ? 'Backquote' : e.code;
+    if (el[c]) { el[c].classList.add('hit'); hit.add(c); kbstat(); }
+    if (!e.metaKey) e.preventDefault();
+  }, true);
+  kbstat();
+
+  // ---------- 트랙패드 ----------
+  const pad = document.getElementById('pad'), chips = {};
+  document.querySelectorAll('#padchips span').forEach(s => chips[s.dataset.p] = s);
+  const mark = p => chips[p] && chips[p].classList.add('hit');
+  pad.addEventListener('click', () => mark('click'));
+  pad.addEventListener('contextmenu', e => { e.preventDefault(); mark('right'); });
+  pad.addEventListener('webkitmouseforcedown', () => mark('force'));
+  pad.addEventListener('wheel', e => { e.preventDefault(); mark('scroll'); }, { passive:false });
+  const corners = new Set();
+  document.addEventListener('mousemove', e => {
+    const w = innerWidth, h = innerHeight, m = 40;
+    if (e.clientX < m && e.clientY < m) corners.add('tl');
+    if (e.clientX > w - m && e.clientY < m) corners.add('tr');
+    if (e.clientX < m && e.clientY > h - m) corners.add('bl');
+    if (e.clientX > w - m && e.clientY > h - m) corners.add('br');
+    if (corners.size === 4) mark('move');
+  });
+
+  // ---------- 스피커 ----------
+  let ac;
+  const ctx = () => (ac = ac || new (window.AudioContext || window.webkitAudioContext)());
+  function tone(pan, f = 440, dur = 0.8) {
+    const a = ctx(), o = a.createOscillator(), g = a.createGain(), p = a.createStereoPanner();
+    o.frequency.value = f; p.pan.value = pan; g.gain.value = 0.25;
+    o.connect(g).connect(p).connect(a.destination); o.start(); o.stop(a.currentTime + dur);
+  }
+  document.querySelectorAll('[data-pan]').forEach(b => b.onclick = () => tone(+b.dataset.pan));
+  document.getElementById('sweep').onclick = () => {
+    const a = ctx(), o = a.createOscillator(), g = a.createGain();
+    g.gain.value = 0.25; o.frequency.setValueAtTime(60, a.currentTime);
+    o.frequency.exponentialRampToValueAtTime(8000, a.currentTime + 4);
+    o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 4);
+  };
+
+
+  // ---------- GPU 스트레스 ----------
+  document.getElementById('gpubtn').onclick = () => {
+    const cv = document.getElementById('gpucv'), st = document.getElementById('gpustat');
+    const gl = cv.getContext('webgl2') || cv.getContext('webgl');
+    if (!gl) { st.textContent = 'WebGL 사용 불가 → 문제'; return; }
+    let lost = false;
+    cv.addEventListener('webglcontextlost', e => { e.preventDefault(); lost = true; }, { once: true });
+    const vs = 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+    const fs = 'precision highp float;uniform float t;uniform vec2 r;' +
+      'void main(){vec2 uv=gl_FragCoord.xy/r;float v=0.;' +
+      'for(int i=0;i<400;i++){float f=float(i);v+=sin(uv.x*f*.37+t)*cos(uv.y*f*.29-t)+fract(sin(dot(uv+f,vec2(12.9,78.2)))*43758.5);}' +
+      'gl_FragColor=vec4(.5+.5*sin(v),.5+.5*sin(v*1.3),.5+.5*cos(v*.7),1.);}';
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(pr); gl.useProgram(pr);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const ut = gl.getUniformLocation(pr, 't'), ur = gl.getUniformLocation(pr, 'r');
+    gl.uniform2f(ur, cv.width, cv.height);
+    const t0 = performance.now(); let frames = 0, sec = 0, first = null, last = 0, perSec = [];
+    (function loop(now) {
+      if (lost) { st.textContent = '❌ WebGL 컨텍스트 손실 (GPU 리셋) → 문제'; return; }
+      const el = (now - t0) / 1000;
+      gl.uniform1f(ut, el); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); frames++;
+      if (Math.floor(el) > sec) { perSec.push(frames); frames = 0; sec = Math.floor(el); }
+      if (el < 60) {
+        const fps = perSec.length ? perSec[perSec.length - 1] : 0;
+        st.textContent = `${Math.floor(el)}초 · ${fps} FPS`;
+        requestAnimationFrame(loop);
+      } else {
+        const a = perSec.slice(1, 11), z = perSec.slice(-10);
+        const avg = x => x.reduce((p, c) => p + c, 0) / Math.max(1, x.length);
+        const ratio = Math.round(avg(z) / Math.max(1, avg(a)) * 100);
+        st.textContent = `완료 · 처음 ${avg(a).toFixed(0)} → 끝 ${avg(z).toFixed(0)} FPS (유지율 ${ratio}%) ` +
+          (ratio >= 70 ? '✅ 정상' : ratio >= 50 ? '⚠️ 발열로 다소 하락' : '❌ 크게 하락');
+      }
+    })(t0);
+  };
+  // ---------- 마이크·카메라 ----------
+  document.getElementById('av').onclick = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio:true, video:true });
+      document.getElementById('vid').srcObject = s;
+      const a = ctx(), src = a.createMediaStreamSource(s), an = a.createAnalyser();
+      an.fftSize = 1024; src.connect(an);
+      const buf = new Float32Array(an.fftSize), bar = document.querySelector('#meter div');
+      (function loop() {
+        an.getFloatTimeDomainData(buf);
+        let sum = 0; for (const x of buf) sum += x * x;
+        bar.style.width = Math.min(100, Math.sqrt(sum / buf.length) * 400) + '%';
+        requestAnimationFrame(loop);
+      })();
+    } catch (e) {
+      alert('권한이 거부되었거나 장치를 찾지 못했습니다: ' + e.message);
+    }
+  };
+})();
+</script>
+</body>
+</html>
